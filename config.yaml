@@ -1,0 +1,31 @@
+data:
+  dataset_path: /ssddata2/yiwei/Schubert_Winterreise_Dataset_v1-2
+
+  split: song
+
+  seg_length: 20.0
+  train_seg_hop_length: 10.0
+  val_seg_hop_length: 5.0
+
+  batch_size: 32
+  num_workers: 8
+
+model:
+  feature_args:
+    sr: 22050
+    hop_length: 0.2
+    bins_per_octave: &bins_per_octave 12
+    num_octaves: &num_octaves 6  # after cropping
+
+  model_args:
+    channel: 4
+    bins_per_octave: *bins_per_octave
+    num_octaves: *num_octaves
+    dropout: 0.3
+
+trainer:
+  save_dir: work_dir/OctaveNet_song
+  lr: 0.001
+  max_epoch: 15
+  max_patience: 10
+  device: cpu
