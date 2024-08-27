@@ -4,14 +4,37 @@ import torch.nn as nn
 
 NUM_CLASSES = 24
 
+
 class OctaveNet(nn.Module):
+    """
+    OctaveNet backbone
+
+    Parameters
+    ----------
+    channel : int
+        Number of channels
+    bins_per_octave : int
+        Number of bins per octave
+    num_octaves : int
+        Number of octaves
+    dropout : float
+        Dropout rate, default is 0.3
+
+    chroma : bool
+        Whether to use the chroma branch, default is True
+    octave : bool
+        Whether to use the octave branch, default is True
+    fuse : bool
+        Whether to use the fuse module, default is True
+    """
+
     def __init__(
         self,
-        channel=16,
-        bins_per_octave=24,
-        num_octaves=6,
-        dropout=0.3,
-        
+        channel: int,
+        bins_per_octave: int,
+        num_octaves: int,
+        dropout: float = 0.3,
+
         chroma=True,
         octave=True,
         fuse=True
@@ -62,12 +85,22 @@ class OctaveNet(nn.Module):
                 nn.Linear(channel * 2, channel * 2),
             )
             self.rnn_combine = nn.LSTM(channel * 2, channel * 2, num_layers=1, batch_first=True, bidirectional=True)
-        
+
         self.linear = nn.Linear(channel * 4, NUM_CLASSES)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor):
+        """
+        Input
+        ----------
+        x : torch.Tensor
+            Input tensor, shape (batch, 1, num_bins, num_frames)
 
+        Output
+        ----------
+        x : torch.Tensor
+            Output tensor, shape (batch, num_frames, num_classes)
+        """
         assert x.shape[2] == self.bins_per_octave * self.num_octaves
 
         x = x.reshape(x.shape[0], self.num_octaves, self.bins_per_octave, x.shape[-1])

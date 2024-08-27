@@ -1,5 +1,5 @@
 data:
-  dataset_path: /ssddata2/yiwei/Schubert_Winterreise_Dataset_v1-2
+  dataset_path: ../datasets/SWD
 
   split: song
 

@@ -4,8 +4,24 @@ from nnAudio import features
 
 from data import INDEX_TO_KEY
 
+
 class CQTWithShift(nn.Module):
-    def __init__(self, sr=22050, hop_length=0.2, bins_per_octave=24, num_octaves=6) -> None:
+    """
+    Computing CQT with random shift as pitch shift augmentation
+
+    Parameters
+    ----------
+    sr : int
+        Sampling rate
+    hop_length : float
+        Hop length in seconds
+    bins_per_octave : int
+        Number of bins per octave
+    num_octaves : int
+        Number of octaves
+    """
+
+    def __init__(self, sr: int, hop_length: float, bins_per_octave: int, num_octaves: int) -> None:
         super().__init__()
 
         self.bins_per_octave = bins_per_octave
@@ -16,7 +32,24 @@ class CQTWithShift(nn.Module):
         self.cqt_layer = features.cqt.CQT(
             sr=sr, hop_length=hop_frames, n_bins=(num_octaves + 1)*bins_per_octave, bins_per_octave=bins_per_octave)
 
-    def forward(self, x, y, shift=True):
+    def forward(self, x: torch.Tensor, y: torch.Tensor, shift: bool = True):
+        """
+        Input
+        ----------
+        x : torch.Tensor
+            Audio signal, shape (batch, num_samples)
+        y : torch.Tensor
+            Labels, shape (batch, num_frames)
+        shift : bool
+            Whether to shift the CQT spectrogram, default is True
+
+        Output
+        ----------
+        s : torch.Tensor
+            CQT spectrogram, shape (batch, 1, num_frames, num_bins)
+        y : torch.Tensor
+            Labels, shape (batch, num_frames)
+        """
 
         with torch.no_grad():
             s = self.cqt_layer(x)
@@ -28,9 +61,6 @@ class CQTWithShift(nn.Module):
             s = (s - torch.mean(s, dim=(1, 2), keepdim=True)) / torch.std(s, dim=(1, 2), keepdim=True)
 
             shift = shift.to(x.device)
-            #TODO: Check whether this is unnecessary
-            if len(y.shape) == 3:
-                shift = shift.unsqueeze(dim=-1)
             y = torch.where(y != -1, (y - shift * 2) % len(INDEX_TO_KEY), y)
 
             s = s.unsqueeze(dim=1)

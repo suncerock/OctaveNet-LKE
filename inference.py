@@ -11,16 +11,34 @@ from model import LKEModel
 def inference(
     model_dir,
     output_dir,
-    
-    dataset_path="/ssddata2/yiwei/Schubert_Winterreise_Dataset_v1-2",
+
+    dataset_path="../datasets/SWD",
     split="song",
 
     hop_length=0.2,
 
     device="cuda"
 ):
+    """
+    Inference on the test set and save the output to csv files
+
+    Parameters
+    ----------
+    model_dir : str
+        Directory of the model
+    output_dir : str
+        Directory of the output
+    dataset_path : str
+        Path to the dataset
+    split : str
+        "version", "song", "neither"
+    hop_length : float
+        Hop length in seconds, default is 0.2
+    device : str
+        Device to run the model, default is "cuda"
+    """
     _, _, test_list = get_split_list(split)
-    with open(os.path.join(model_dir, "config.yaml")) as f:
+    with open(os.path.join(model_dir, "config.yaml"), encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     data = []
@@ -33,17 +51,20 @@ def inference(
     detailed_output_dir = os.path.join(output_dir, "detailed_output")
     os.makedirs(detailed_output_dir, exist_ok=True)
 
-    for i in range(len(test_list)):
+    for i, piece_list in enumerate(len(test_list)):
         print("Evaluating split: ", i)
-        ckpt_dir = os.path.join(model_dir, "split_{:d}".format(i))
-        
-        sort_key = lambda x:float(x.replace(".pth", "").split("=")[-1])
+        ckpt_dir = os.path.join(model_dir, f"split_{i}")
+
+        def sort_key(x):
+            return float(x.replace(".pth", "").split("=")[-1])
+
         filename = sorted(
             [name for name in os.listdir(ckpt_dir) if name.endswith(".pth")],
-            key=sort_key)
+            key=sort_key
+        )
 
         if len(filename) > 1:
-            print("Multiple checkpoint found! Using {}".format(filename[-1]))
+            print(f"Multiple checkpoint found! Using {filename[-1]}")
         ckpt_path = os.path.join(ckpt_dir, filename[-1])
 
         model = LKEModel(**config["model"])
@@ -52,7 +73,7 @@ def inference(
         model.eval()
 
         test_dataloader = get_SWD_dataloader(
-            dataset_path=dataset_path, piece_list=test_list[i], seg_length=-1, seg_hop_length=-1, hop_length=hop_length,
+            dataset_path=dataset_path, piece_list=piece_list, seg_length=-1, seg_hop_length=-1, hop_length=hop_length,
             batch_size=1, shuffle=False, num_workers=0
         )
 
@@ -78,13 +99,13 @@ def inference(
                 target[target == -1] = "nan"
                 data["ann"] = target
 
-                pd.DataFrame(data).to_csv(os.path.join(detailed_output_dir, "{}.csv".format(piece)), index=False)
+                pd.DataFrame(data).to_csv(os.path.join(detailed_output_dir, f"{piece}.csv"), index=False)
 
                 target = batch["y"][0]
-                
+
                 count = torch.count_nonzero(target != -1).item()
                 correct = torch.count_nonzero(output[target != -1] == target[target != -1]).item()
-                
+
                 acc = correct / count * 100
 
                 df.loc[(df["song"] == song) & (df["version"] == version), "acc"] = acc
@@ -106,7 +127,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     inference(
-        model_dir=args.model_dir, 
+        model_dir=args.model_dir,
         output_dir=args.output_dir,
         dataset_path=args.dataset_path,
         split=args.split,

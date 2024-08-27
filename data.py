@@ -10,7 +10,7 @@ import torch.utils.data as Data
 
 
 ALL_VERSIONS = ["HU33", "SC06", "AL98", "FI55", "FI66", "FI80", "OL06", "QU98", "TR99"]
-ALL_SONGS = ["{:02d}".format(x) for x in range(1, 24+1)]
+ALL_SONGS = [f"{x:02d}" for x in range(1, 24+1)]
 
 INDEX_TO_KEY = [
     "A:maj", "A:min", "A#:maj", "A#:min", "B:maj", "B:min", "C:maj", "C:min",
@@ -20,35 +20,74 @@ INDEX_TO_KEY = [
 KEY_TO_INDEX = {key: i for i, key in enumerate(INDEX_TO_KEY)}
 
 
-def get_split_list(split="neither"):
+def get_split_list(split: str = "neither"):
+    """
+    Get the data list for training, validation and testing.
+
+    Parameters
+    ----------
+    split: str
+        "version", "song", "neither"
+
+    Returns
+    ----------
+    train_list: list[list[str]]
+        List of training pieces
+    valid_list: list[list[str]]
+        List of validation pieces
+    test_list: list[list[str]]
+        List of testing pieces
+    """
+
     train_list, valid_list, test_list = [], [], []
 
     if split == "version":
         versions_split = [np.roll(ALL_VERSIONS, i) for i in [0, 3, 6]]
         for versions in versions_split:
-            train_list.append(["Schubert_D911-{}_{}".format(song, version) for song in ALL_SONGS for version in versions[:5]])
-            valid_list.append(["Schubert_D911-{}_{}".format(song, version) for song in ALL_SONGS for version in versions[5:6]])
-            test_list.append(["Schubert_D911-{}_{}".format(song, version) for song in ALL_SONGS for version in versions[6:]])
-            
+            train_list.append([f"Schubert_D911-{song}_{version}" for song in ALL_SONGS for version in versions[:5]])
+            valid_list.append([f"Schubert_D911-{song}_{version}" for song in ALL_SONGS for version in versions[5:6]])
+            test_list.append([f"Schubert_D911-{song}_{version}" for song in ALL_SONGS for version in versions[6:]])
+
     elif split == "song":
         songs_split = [np.roll(ALL_SONGS, i) for i in [0, 8, 16]]
         for songs in songs_split:
-            train_list.append(["Schubert_D911-{}_{}".format(song, version) for version in ALL_VERSIONS for song in songs[:13]])
-            valid_list.append(["Schubert_D911-{}_{}".format(song, version) for version in ALL_VERSIONS for song in songs[13:16]])
-            test_list.append(["Schubert_D911-{}_{}".format(song, version) for version in ALL_VERSIONS for song in songs[16:]])
+            train_list.append([f"Schubert_D911-{song}_{version}" for version in ALL_VERSIONS for song in songs[:13]])
+            valid_list.append([f"Schubert_D911-{song}_{version}" for version in ALL_VERSIONS for song in songs[13:16]])
+            test_list.append([f"Schubert_D911-{song}_{version}" for version in ALL_VERSIONS for song in songs[16:]])
 
     elif split == "neither":
         versions_split = [np.roll(ALL_VERSIONS, i) for i in [0, 3, 6]]
         songs_split = [np.roll(ALL_SONGS, i) for i in [0, 3, 6, 9, 12, 15, 18, 21]]
         for versions, songs in product(versions_split, songs_split):
-            train_list.append(["Schubert_D911-{}_{}".format(song, version) for version in versions[:4] for song in songs[:19]])
-            valid_list.append(["Schubert_D911-{}_{}".format(song, version) for version in versions[4:6] for song in songs[19:21]])
-            test_list.append(["Schubert_D911-{}_{}".format(song, version) for version in versions[6:] for song in songs[21:]])
-        
+            train_list.append([f"Schubert_D911-{song}_{version}" for version in versions[:4] for song in songs[:19]])
+            valid_list.append([f"Schubert_D911-{song}_{version}" for version in versions[4:6] for song in songs[19:21]])
+            test_list.append([f"Schubert_D911-{song}_{version}" for version in versions[6:] for song in songs[21:]])
+
     return train_list, valid_list, test_list
 
 
 class SingleSongDataset(Data.Dataset):
+    """
+    Dataset class for a single song.
+
+    Parameters
+    ----------
+    audio_path: str
+        Path to the audio file
+    label_path: str
+        Path to the label file
+    sr: int
+        Sample rate of the audio file
+    seg_length: float
+        Length of the segment in seconds
+    seg_hop_length: float
+        Hop length of the segment in seconds
+    hop_length: float
+        Hop length of the labels in seconds
+    shift: bool
+        Whether to shift the CQT spectrogram
+    """
+
     def __init__(
         self,
         audio_path,
@@ -118,21 +157,44 @@ def get_SWD_dataloader(
     shuffle=True,
     num_workers=8
 ):
+    """
+    Get the dataloaders for the SWD dataset.
+
+    Parameters
+    ----------
+    dataset_path: str
+        Path to the dataset
+    piece_list: list[str]
+        List of pieces
+    seg_length: float
+        Length of the segment in seconds
+    seg_hop_length: float
+        Hop length of the segment in seconds
+    hop_length: float
+        Hop length of the labels in seconds
+    batch_size: int
+        Batch size
+    shuffle: bool
+        Whether to shuffle the dataset
+    num_workers: int
+        Number of workers
+    """
+
     audio_folder = os.path.join(dataset_path, "01_RawData/audio_wav")
     label_folder = os.path.join(dataset_path, "02_Annotations/ann_audio_localkey-ann3")
-    
+
     dataset_list = []
     for piece in piece_list:
         dataset = SingleSongDataset(
-            audio_path=os.path.join(audio_folder, "{}.wav".format(piece)),
-            label_path=os.path.join(label_folder, "{}.csv".format(piece)),
+            audio_path=os.path.join(audio_folder, f"{piece}.wav"),
+            label_path=os.path.join(label_folder, f"{piece}.csv"),
             sr=22050,
             seg_length=seg_length,
             seg_hop_length=seg_hop_length,
             hop_length=hop_length
         )
         dataset_list.append(dataset)
-    
+
     dataloader = Data.DataLoader(
         Data.ConcatDataset(dataset_list), batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
 
