@@ -51,7 +51,7 @@ def inference(
     detailed_output_dir = os.path.join(output_dir, "detailed_output")
     os.makedirs(detailed_output_dir, exist_ok=True)
 
-    for i, piece_list in enumerate(len(test_list)):
+    for i, piece_list in enumerate(test_list):
         print("Evaluating split: ", i)
         ckpt_dir = os.path.join(model_dir, f"split_{i}")
 

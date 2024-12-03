@@ -14,11 +14,11 @@ model:
   feature_args:
     sr: 22050
     hop_length: 0.2
-    bins_per_octave: &bins_per_octave 12
+    bins_per_octave: &bins_per_octave 24
     num_octaves: &num_octaves 6  # after cropping
 
   model_args:
-    channel: 4
+    channel: 32
     bins_per_octave: *bins_per_octave
     num_octaves: *num_octaves
     dropout: 0.3
@@ -26,6 +26,6 @@ model:
 trainer:
   save_dir: work_dir/OctaveNet_song
   lr: 0.001
-  max_epoch: 15
+  max_epoch: 50
   max_patience: 10
-  device: cpu
+  device: cuda

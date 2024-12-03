@@ -120,8 +120,9 @@ class SingleSongDataset(Data.Dataset):
         self.shift = shift
         self.df = pd.read_csv(self.label_path, sep=";")
 
-        audio, sr = sf.read(self.audio_path)
+        audio, sr = sf.read(self.audio_path, dtype=np.float32)
         assert sr == self.sr
+        self.audio = audio
         self.length = (len(audio) - self.seg_frames) // self.seg_hop_frames if self.seg_length > 0 else 1
 
     def __len__(self):
@@ -130,10 +131,10 @@ class SingleSongDataset(Data.Dataset):
     def __getitem__(self, index):
         if self.seg_length > 0:
             start_frame = index * self.seg_hop_frames
-            audio, sr = sf.read(self.audio_path, start=start_frame, frames=self.seg_frames, dtype=np.float32)
+            audio, sr = self.audio[start_frame:start_frame+self.seg_frames], self.sr
             frame = np.arange(start_frame, start_frame+self.seg_frames+1, self.hop_frames)  # same shape as cqt spectrogram
         else:
-            audio, sr = sf.read(self.audio_path, dtype=np.float32)
+            audio, sr = self.audio, self.sr
             frame = np.arange(0, len(audio) + 1, self.hop_frames)
         time_frame = frame / sr
 
